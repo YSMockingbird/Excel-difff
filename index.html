@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Excel difff - Compare Excel sheets and visualize differences. Free online tool to detect changes, additions, and deletions between Excel files.">
+    <meta name="keywords" content="Excel diff, Excel compare, Excel differences, spreadsheet comparison, Excel difff">
+    <title>Excel difff</title>
+    <style>
+        /* ===== BASE STYLES ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #2196f3;
+            --primary-hover: #1976d2;
+            --diff-color: #d32f2f;
+            --diff-bg: #ffcdd2;
+            --border-color: #ddd;
+            --header-bg: #f8f9fa;
+            --success-color: #2e7d32;
+            --success-bg: #e8f5e8;
+            --success-border: #4caf50;
+            --warning-color: #ef6c00;
+            --warning-bg: #fff3e0;
+            --warning-border: #ff9800;
+            --text-color: #333;
+            --text-muted: #666;
+            --bg-color: #fafafa;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        /* ===== LAYOUT ===== */
+        .container {
+            max-width: 98%;
+            margin: 0 auto;
+            padding: 15px 15px 35px 15px;
+        }
+
+        @media (min-width: 1400px) {
+            .container {
+                max-width: 96%;
+                padding: 15px 15px 35px 15px;
+            }
+        }
+
+        @media (min-width: 1600px) {
+            .container {
+                max-width: 94%;
+                padding: 12px 12px 32px 12px;
+            }
+        }
+
+        @media (min-width: 1920px) {
+            .container {
+                max-width: 92%;
+                padding: 10px 10px 30px 10px;
+            }
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: var(--primary-color);
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* ===== INPUT SECTION ===== */
+        .input-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .input-group {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .input-group h3 {
+            margin-bottom: 10px;
+            color: var(--text-color);
+            font-size: 1.1rem;
+        }
+
+        .input-textarea {
+            width: 100%;
+            height: 200px;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            padding: 12px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            resize: vertical;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .input-textarea:focus {
+            border-color: var(--primary-color);
+        }
+
+        /* ===== CONTROLS ===== */
+        .controls {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .compare-btn {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .compare-btn:hover:not(:disabled) {
+            background: var(--primary-hover);
+        }
+
+        .compare-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* ===== RESULT MESSAGE ===== */
+        .result-message {
+            margin-top: 15px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            display: none;
+            transition: all 0.3s ease;
+        }
+
+        .result-message.no-diff {
+            background: var(--success-bg);
+            color: var(--success-color);
+            border: 1px solid var(--success-border);
+        }
+
+        .result-message.has-diff {
+            background: var(--warning-bg);
+            color: var(--warning-color);
+            border: 1px solid var(--warning-border);
+        }
+
+        /* ===== CONTROL ITEMS ===== */
+        .control-item {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .control-item input[type="checkbox"] {
+            transform: scale(1.2);
+            cursor: pointer;
+        }
+
+        .control-item label {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        /* ===== COMPARISON SECTION ===== */
+        .comparison-section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .comparison-section.show {
+            display: block;
+            opacity: 1;
+        }
+
+        .table-container {
+            display: flex;
+            gap: 20px;
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            position: relative;
+        }
+
+        .table-section {
+            display: flex;
+            flex-direction: column;
+            min-width: 200px;
+            position: relative;
+            width: 50%;
+            flex-shrink: 0;
+        }
+
+        .table-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding: 10px;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+            text-align: center;
+            border-radius: 4px 4px 0 0;
+        }
+
+        .table-wrapper {
+            overflow: auto;
+            max-height: 720px;
+            border: 1px solid var(--border-color);
+            border-radius: 0 0 4px 4px;
+        }
+
+        /* ===== RESIZE HANDLE ===== */
+        .resize-handle {
+            position: absolute;
+            top: 0;
+            right: -10px;
+            width: 20px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 100;
+            transition: background-color 0.2s ease;
+        }
+
+        .resize-handle:hover {
+            background: rgba(33, 150, 243, 0.1);
+        }
+
+        .resize-handle::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 4px;
+            height: 40px;
+            background: #ccc;
+            border-radius: 2px;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+
+        .resize-handle:hover::after {
+            opacity: 1;
+        }
+
+        /* ===== TABLE STYLES ===== */
+        .diff-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+
+        .diff-table th,
+        .diff-table td {
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            text-align: left;
+            min-width: 60px;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            height: 24px;
+        }
+
+        .diff-table th {
+            background: var(--header-bg);
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .row-header {
+            background: var(--header-bg);
+            font-weight: bold;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+            text-align: center;
+        }
+
+        /* ===== DIFF HIGHLIGHTING ===== */
+        .cell-changed,
+        .cell-added,
+        .cell-deleted {
+            background: var(--diff-bg);
+            border-color: var(--diff-color);
+            border-width: 2px;
+            color: var(--diff-color);
+            font-weight: bold;
+        }
+
+        /* ===== UTILITY ===== */
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-muted);
+            font-style: italic;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 768px) {
+            .input-section {
+                grid-template-columns: 1fr;
+            }
+
+            .table-container {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .table-section {
+                width: 100%;
+            }
+
+            .resize-handle {
+                display: none;
+            }
+
+            .header h1 {
+                font-size: 1.5rem;
+            }
+
+            .input-group {
+                padding: 15px;
+            }
+
+            .input-textarea {
+                height: 150px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 10px 10px 25px 10px;
+            }
+
+            .input-group {
+                padding: 12px;
+            }
+
+            .table-container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>Excel difff</h1>
+            <p>Excel difff - Compare two Excel sheets and visualize the differences</p>
+        </header>
+
+        <section class="input-section">
+            <div class="input-group">
+                <h3>Original Data</h3>
+                <textarea 
+                    id="originalData" 
+                    class="input-textarea" 
+                    placeholder="Select all (Ctrl+A) and copy (Ctrl+C) data from Excel, then paste it here"
+                    aria-label="Original Excel data input"
+                ></textarea>
+            </div>
+            <div class="input-group">
+                <h3>Comparison Data</h3>
+                <textarea 
+                    id="compareData" 
+                    class="input-textarea" 
+                    placeholder="Select all (Ctrl+A) and copy (Ctrl+C) data from Excel, then paste it here"
+                    aria-label="Comparison Excel data input"
+                ></textarea>
+            </div>
+        </section>
+
+        <section class="controls">
+            <button id="compareBtn" class="compare-btn" aria-label="Compare Excel data">
+                Compare
+            </button>
+            <div id="resultMessage" class="result-message" role="alert" aria-live="polite"></div>
+        </section>
+
+        <section id="comparisonSection" class="comparison-section">
+            <div class="table-container">
+                <div class="table-section original">
+                    <div class="table-title">Original Data</div>
+                    <div class="table-wrapper" id="originalWrapper" role="region" aria-label="Original data table">
+                        <div id="originalTable" class="no-data">No data available</div>
+                    </div>
+                    <div class="resize-handle" id="resizeHandle" aria-label="Resize tables"></div>
+                </div>
+                <div class="table-section comparison">
+                    <div class="table-title">Comparison Data</div>
+                    <div class="table-wrapper" id="compareWrapper" role="region" aria-label="Comparison data table">
+                        <div id="compareTable" class="no-data">No data available</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="syncControl" class="control-item hidden" style="margin-top: 20px;">
+                <input type="checkbox" id="syncScroll" checked aria-describedby="syncScrollDescription">
+                <label for="syncScroll">Synchronized Scrolling</label>
+                <span id="syncScrollDescription" class="hidden">When enabled, both tables scroll together</span>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        /**
+         * Excel Diff Tool - Compare Excel sheets and visualize differences
+         */
+        class ExcelDiffTool {
+            // Constants
+            static MESSAGES = {
+                NO_DATA: 'Please enter data in both fields.',
+                NO_DIFFERENCES: 'No differences found - Data is identical',
+                CELL_DIFFERENCE_SINGLE: '1 cell difference found',
+                CELL_DIFFERENCES_PLURAL: (count) => `${count} cell differences found`
+            };
+
+            static SELECTORS = {
+                COMPARE_BTN: '#compareBtn',
+                ORIGINAL_DATA: '#originalData',
+                COMPARE_DATA: '#compareData',
+                SYNC_SCROLL: '#syncScroll',
+                SYNC_CONTROL: '#syncControl',
+                RESULT_MESSAGE: '#resultMessage',
+                COMPARISON_SECTION: '#comparisonSection',
+                RESIZE_HANDLE: '#resizeHandle',
+                ORIGINAL_WRAPPER: '#originalWrapper',
+                COMPARE_WRAPPER: '#compareWrapper',
+                ORIGINAL_TABLE: '#originalTable',
+                COMPARE_TABLE: '#compareTable',
+                TABLE_CONTAINER: '.table-container'
+            };
+
+            constructor() {
+                this.state = {
+                    originalData: [],
+                    compareData: [],
+                    diffResult: null,
+                    syncScrollEnabled: true,
+                    isResizing: false
+                };
+                
+                this.elements = {};
+                this.init();
+            }
+
+            /**
+             * Initialize the application
+             */
+            init() {
+                this.cacheElements();
+                this.bindEvents();
+            }
+
+            /**
+             * Cache DOM elements for better performance
+             */
+            cacheElements() {
+                Object.entries(ExcelDiffTool.SELECTORS).forEach(([key, selector]) => {
+                    this.elements[key] = document.querySelector(selector);
+                });
+            }
+
+            /**
+             * Bind event listeners
+             */
+            bindEvents() {
+                this.elements.COMPARE_BTN.addEventListener('click', () => this.handleCompare());
+                this.elements.SYNC_SCROLL.addEventListener('change', (e) => this.handleSyncToggle(e));
+            }
+
+            /**
+             * Handle compare button click
+             */
+            async handleCompare() {
+                try {
+                    this.elements.COMPARE_BTN.disabled = true;
+                    
+                    const originalText = this.elements.ORIGINAL_DATA.value.trim();
+                    const compareText = this.elements.COMPARE_DATA.value.trim();
+
+                    if (!originalText || !compareText) {
+                        this.showAlert(ExcelDiffTool.MESSAGES.NO_DATA);
+                        return;
+                    }
+
+                    await this.performComparison(originalText, compareText);
+                } catch (error) {
+                    console.error('Comparison failed:', error);
+                    this.showAlert('An error occurred during comparison. Please try again.');
+                } finally {
+                    this.elements.COMPARE_BTN.disabled = false;
+                }
+            }
+
+            /**
+             * Handle sync scroll toggle
+             */
+            handleSyncToggle(event) {
+                this.state.syncScrollEnabled = event.target.checked;
+            }
+
+            /**
+             * Show alert message
+             */
+            showAlert(message) {
+                alert(message);
+            }
+
+            /**
+             * Parse tab-delimited data into 2D array
+             */
+            parseTabDelimitedData(data) {
+                if (!data) return [];
+                
+                return data.split('\n')
+                    .filter(line => line.trim())
+                    .map(line => line.split('\t').map(cell => cell.trim()));
+            }
+
+            /**
+             * Perform the comparison workflow
+             */
+            async performComparison(originalText, compareText) {
+                // Parse data
+                this.state.originalData = this.parseTabDelimitedData(originalText);
+                this.state.compareData = this.parseTabDelimitedData(compareText);
+
+                // Calculate differences
+                this.state.diffResult = this.calculateDiff(this.state.originalData, this.state.compareData);
+
+                // Display results
+                this.displayResults();
+            }
+
+            /**
+             * Calculate differences between two datasets
+             */
+            calculateDiff(original, compare) {
+                const result = {
+                    original: [],
+                    compare: [],
+                    changes: [],
+                    originalRowNumbers: [],
+                    compareRowNumbers: []
+                };
+
+                const alignment = this.calculateOptimalAlignment(original, compare);
+                
+                alignment.forEach(match => {
+                    switch (match.type) {
+                        case 'match':
+                            this.processMatchedRows(match, original, compare, result);
+                            break;
+                        case 'delete':
+                            this.processDeletedRow(match, original, result);
+                            break;
+                        case 'insert':
+                            this.processInsertedRow(match, compare, result);
+                            break;
+                    }
+                });
+
+                return result;
+            }
+
+            /**
+             * Process matched rows and detect cell-level differences
+             */
+            processMatchedRows(match, original, compare, result) {
+                const originalRow = original[match.originalIndex];
+                const compareRow = compare[match.compareIndex];
+                
+                const maxCols = Math.max(originalRow.length, compareRow.length);
+                const normalizedOriginal = this.normalizeRow(originalRow, maxCols);
+                const normalizedCompare = this.normalizeRow(compareRow, maxCols);
+                
+                result.original.push(normalizedOriginal);
+                result.compare.push(normalizedCompare);
+                result.originalRowNumbers.push(match.originalIndex + 1);
+                result.compareRowNumbers.push(match.compareIndex + 1);
+                
+                // Detect cell-level differences
+                for (let col = 0; col < maxCols; col++) {
+                    if (normalizedOriginal[col] !== normalizedCompare[col]) {
+                        const changeType = this.getCellChangeType(normalizedOriginal[col], normalizedCompare[col]);
+                        result.changes.push({ 
+                            row: result.original.length - 1, 
+                            col, 
+                            type: changeType 
+                        });
+                    }
+                }
+            }
+
+            /**
+             * Process deleted row
+             */
+            processDeletedRow(match, original, result) {
+                const originalRow = original[match.originalIndex];
+                const emptyRow = new Array(originalRow.length).fill('');
+                
+                result.original.push(originalRow);
+                result.compare.push(emptyRow);
+                result.originalRowNumbers.push(match.originalIndex + 1);
+                result.compareRowNumbers.push(null);
+                
+                originalRow.forEach((cell, col) => {
+                    if (cell !== '') {
+                        result.changes.push({ 
+                            row: result.original.length - 1, 
+                            col, 
+                            type: 'deleted' 
+                        });
+                    }
+                });
+            }
+
+            /**
+             * Process inserted row
+             */
+            processInsertedRow(match, compare, result) {
+                const compareRow = compare[match.compareIndex];
+                const emptyRow = new Array(compareRow.length).fill('');
+                
+                result.original.push(emptyRow);
+                result.compare.push(compareRow);
+                result.originalRowNumbers.push(null);
+                result.compareRowNumbers.push(match.compareIndex + 1);
+                
+                compareRow.forEach((cell, col) => {
+                    if (cell !== '') {
+                        result.changes.push({ 
+                            row: result.original.length - 1, 
+                            col, 
+                            type: 'added' 
+                        });
+                    }
+                });
+            }
+
+            /**
+             * Determine cell change type
+             */
+            getCellChangeType(original, compare) {
+                if (original === '' && compare !== '') return 'added';
+                if (original !== '' && compare === '') return 'deleted';
+                return 'changed';
+            }
+
+            /**
+             * Calculate optimal alignment using dynamic programming
+             */
+            calculateOptimalAlignment(original, compare) {
+                const similarity = this.buildSimilarityMatrix(original, compare);
+                const { trace } = this.buildDPTable(similarity, original.length, compare.length);
+                return this.backtrackAlignment(trace, original.length, compare.length);
+            }
+
+            /**
+             * Build similarity matrix for row comparison
+             */
+            buildSimilarityMatrix(original, compare) {
+                return original.map(originalRow => 
+                    compare.map(compareRow => 
+                        this.calculateRowSimilarity(originalRow, compareRow)
+                    )
+                );
+            }
+
+            /**
+             * Build dynamic programming table
+             */
+            buildDPTable(similarity, m, n) {
+                const dp = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
+                const trace = Array(m + 1).fill(null).map(() => Array(n + 1).fill(null));
+                
+                // Initialize boundaries
+                for (let i = 1; i <= m; i++) {
+                    dp[i][0] = dp[i-1][0] - 1;
+                    trace[i][0] = 'delete';
+                }
+                for (let j = 1; j <= n; j++) {
+                    dp[0][j] = dp[0][j-1] - 1;
+                    trace[0][j] = 'insert';
+                }
+                
+                // Fill DP table
+                for (let i = 1; i <= m; i++) {
+                    for (let j = 1; j <= n; j++) {
+                        const scores = {
+                            match: dp[i-1][j-1] + similarity[i-1][j-1],
+                            delete: dp[i-1][j] - 1,
+                            insert: dp[i][j-1] - 1
+                        };
+                        
+                        const maxScore = Math.max(scores.match, scores.delete, scores.insert);
+                        dp[i][j] = maxScore;
+                        
+                        if (maxScore === scores.match) {
+                            trace[i][j] = 'match';
+                        } else if (maxScore === scores.delete) {
+                            trace[i][j] = 'delete';
+                        } else {
+                            trace[i][j] = 'insert';
+                        }
+                    }
+                }
+                
+                return { dp, trace };
+            }
+
+            /**
+             * Backtrack to find optimal alignment
+             */
+            backtrackAlignment(trace, m, n) {
+                const alignment = [];
+                let i = m, j = n;
+                
+                while (i > 0 || j > 0) {
+                    const operation = trace[i][j];
+                    
+                    switch (operation) {
+                        case 'match':
+                            alignment.unshift({ 
+                                type: 'match', 
+                                originalIndex: i - 1, 
+                                compareIndex: j - 1 
+                            });
+                            i--; j--;
+                            break;
+                        case 'delete':
+                            alignment.unshift({ 
+                                type: 'delete', 
+                                originalIndex: i - 1 
+                            });
+                            i--;
+                            break;
+                        case 'insert':
+                            alignment.unshift({ 
+                                type: 'insert', 
+                                compareIndex: j - 1 
+                            });
+                            j--;
+                            break;
+                    }
+                }
+                
+                return alignment;
+            }
+
+            /**
+             * Calculate similarity between two rows
+             */
+            calculateRowSimilarity(row1, row2) {
+                const maxLen = Math.max(row1.length, row2.length);
+                if (maxLen === 0) return 1.0;
+                
+                let matches = 0;
+                for (let i = 0; i < maxLen; i++) {
+                    const cell1 = i < row1.length ? row1[i] : '';
+                    const cell2 = i < row2.length ? row2[i] : '';
+                    if (cell1 === cell2) matches++;
+                }
+                
+                return (matches / maxLen) * 10;
+            }
+
+            /**
+             * Normalize row to target length
+             */
+            normalizeRow(row, targetLength) {
+                const normalized = [...row];
+                while (normalized.length < targetLength) {
+                    normalized.push('');
+                }
+                return normalized;
+            }
+
+            /**
+             * Display comparison results
+             */
+            displayResults() {
+                this.createTables();
+                this.setupSyncScroll();
+                this.setupResizeHandle();
+                this.showResultMessage();
+                this.showComparisonSection();
+            }
+
+            /**
+             * Show result message
+             */
+            showResultMessage() {
+                const changeCount = this.state.diffResult.changes.length;
+                let message, className;
+                
+                if (changeCount === 0) {
+                    message = ExcelDiffTool.MESSAGES.NO_DIFFERENCES;
+                    className = 'result-message no-diff';
+                } else if (changeCount === 1) {
+                    message = ExcelDiffTool.MESSAGES.CELL_DIFFERENCE_SINGLE;
+                    className = 'result-message has-diff';
+                } else {
+                    message = ExcelDiffTool.MESSAGES.CELL_DIFFERENCES_PLURAL(changeCount);
+                    className = 'result-message has-diff';
+                }
+                
+                this.elements.RESULT_MESSAGE.textContent = message;
+                this.elements.RESULT_MESSAGE.className = className;
+                this.elements.RESULT_MESSAGE.style.display = 'block';
+            }
+
+            /**
+             * Show comparison section with animation
+             */
+            showComparisonSection() {
+                this.elements.SYNC_CONTROL.classList.remove('hidden');
+                this.elements.SYNC_CONTROL.style.display = 'flex';
+                this.elements.COMPARISON_SECTION.classList.add('show');
+            }
+
+            /**
+             * Setup synchronized scrolling
+             */
+            setupSyncScroll() {
+                const { ORIGINAL_WRAPPER, COMPARE_WRAPPER } = this.elements;
+                
+                if (!ORIGINAL_WRAPPER || !COMPARE_WRAPPER) return;
+
+                const handleScroll = (source, target) => (e) => {
+                    if (this.state.syncScrollEnabled) {
+                        target.scrollTop = e.target.scrollTop;
+                        target.scrollLeft = e.target.scrollLeft;
+                    }
+                };
+
+                ORIGINAL_WRAPPER.addEventListener('scroll', handleScroll(ORIGINAL_WRAPPER, COMPARE_WRAPPER));
+                COMPARE_WRAPPER.addEventListener('scroll', handleScroll(COMPARE_WRAPPER, ORIGINAL_WRAPPER));
+            }
+
+            /**
+             * Setup resize handle functionality
+             */
+            setupResizeHandle() {
+                const { RESIZE_HANDLE, TABLE_CONTAINER } = this.elements;
+                
+                if (!RESIZE_HANDLE || !TABLE_CONTAINER) return;
+
+                RESIZE_HANDLE.addEventListener('mousedown', (e) => {
+                    this.startResize(e, TABLE_CONTAINER);
+                });
+            }
+
+            /**
+             * Start resize operation
+             */
+            startResize(event, tableContainer) {
+                this.state.isResizing = true;
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+                
+                const startX = event.clientX;
+                const startWidth = tableContainer.getBoundingClientRect().width;
+
+                const handleMouseMove = (e) => {
+                    if (!this.state.isResizing) return;
+                    
+                    const deltaX = e.clientX - startX;
+                    const newWidth = Math.max(600, startWidth + deltaX * 2);
+                    
+                    tableContainer.style.width = `${newWidth}px`;
+                };
+
+                const handleMouseUp = () => {
+                    this.endResize(handleMouseMove, handleMouseUp);
+                };
+
+                document.addEventListener('mousemove', handleMouseMove);
+                document.addEventListener('mouseup', handleMouseUp);
+            }
+
+            /**
+             * End resize operation
+             */
+            endResize(mouseMoveHandler, mouseUpHandler) {
+                this.state.isResizing = false;
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+                document.removeEventListener('mousemove', mouseMoveHandler);
+                document.removeEventListener('mouseup', mouseUpHandler);
+            }
+
+            /**
+             * Create comparison tables
+             */
+            createTables() {
+                const { diffResult } = this.state;
+                
+                const originalTable = this.createTable(diffResult.original, 'original');
+                const compareTable = this.createTable(diffResult.compare, 'compare');
+
+                this.replaceTableContent(this.elements.ORIGINAL_TABLE, originalTable);
+                this.replaceTableContent(this.elements.COMPARE_TABLE, compareTable);
+            }
+
+            /**
+             * Replace table content
+             */
+            replaceTableContent(container, table) {
+                container.innerHTML = '';
+                container.appendChild(table);
+            }
+
+            /**
+             * Create a comparison table
+             */
+            createTable(data, type) {
+                const table = document.createElement('table');
+                table.className = 'diff-table';
+                table.setAttribute('role', 'table');
+                
+                table.appendChild(this.createTableHeader(data));
+                table.appendChild(this.createTableBody(data, type));
+                
+                return table;
+            }
+
+            /**
+             * Create table header
+             */
+            createTableHeader(data) {
+                const thead = document.createElement('thead');
+                const headerRow = document.createElement('tr');
+                
+                // Empty cell for row numbers
+                headerRow.appendChild(this.createHeaderCell(''));
+                
+                // Column headers (A, B, C, ...)
+                const maxCols = Math.max(...data.map(row => row.length), 0);
+                for (let col = 0; col < maxCols; col++) {
+                    headerRow.appendChild(this.createHeaderCell(this.getColumnName(col)));
+                }
+                
+                thead.appendChild(headerRow);
+                return thead;
+            }
+
+            /**
+             * Create table body
+             */
+            createTableBody(data, type) {
+                const tbody = document.createElement('tbody');
+                
+                data.forEach((rowData, rowIndex) => {
+                    tbody.appendChild(this.createTableRow(rowData, rowIndex, type));
+                });
+                
+                return tbody;
+            }
+
+            /**
+             * Create table row
+             */
+            createTableRow(rowData, rowIndex, type) {
+                const tr = document.createElement('tr');
+                
+                // Row header with row number
+                tr.appendChild(this.createRowHeader(rowIndex, type));
+                
+                // Data cells
+                const maxCols = Math.max(...this.state.diffResult.original.map(row => row.length), 0);
+                for (let col = 0; col < maxCols; col++) {
+                    tr.appendChild(this.createDataCell(rowData, rowIndex, col));
+                }
+                
+                return tr;
+            }
+
+            /**
+             * Create row header cell
+             */
+            createRowHeader(rowIndex, type) {
+                const th = document.createElement('td');
+                th.className = 'row-header';
+                th.setAttribute('scope', 'row');
+                
+                const rowNumbers = type === 'original' 
+                    ? this.state.diffResult.originalRowNumbers 
+                    : this.state.diffResult.compareRowNumbers;
+                
+                const rowNumber = rowNumbers[rowIndex];
+                th.textContent = rowNumber !== null ? rowNumber : '';
+                
+                return th;
+            }
+
+            /**
+             * Create data cell
+             */
+            createDataCell(rowData, rowIndex, col) {
+                const td = document.createElement('td');
+                const cellValue = rowData && rowData[col] ? rowData[col] : '';
+                td.textContent = cellValue;
+                
+                // Apply diff styling
+                const change = this.state.diffResult.changes.find(c => c.row === rowIndex && c.col === col);
+                if (change) {
+                    td.className = `cell-${change.type}`;
+                    td.setAttribute('aria-label', `${change.type} cell: ${cellValue}`);
+                }
+                
+                return td;
+            }
+
+            /**
+             * Create header cell
+             */
+            createHeaderCell(text) {
+                const th = document.createElement('th');
+                th.textContent = text;
+                th.setAttribute('scope', 'col');
+                return th;
+            }
+
+            /**
+             * Generate Excel-style column name (A, B, C, ..., AA, AB, ...)
+             */
+            getColumnName(index) {
+                let result = '';
+                let num = index;
+                while (num >= 0) {
+                    result = String.fromCharCode(65 + (num % 26)) + result;
+                    num = Math.floor(num / 26) - 1;
+                }
+                return result;
+            }
+        }
+
+        // Application initialization
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                new ExcelDiffTool();
+            } catch (error) {
+                console.error('Failed to initialize Excel Diff Tool:', error);
+            }
+        });
+    </script>
+</body>
+</html>
