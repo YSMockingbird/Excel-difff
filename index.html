@@ -201,23 +201,20 @@
         }
 
         .table-container {
-            display: flex;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
             gap: 20px;
             background: white;
             border-radius: 8px;
             padding: 20px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             overflow-x: auto;
-            position: relative;
         }
 
         .table-section {
             display: flex;
             flex-direction: column;
-            min-width: 200px;
-            position: relative;
-            width: 50%;
-            flex-shrink: 0;
+            min-width: 0;
         }
 
         .table-title {
@@ -286,11 +283,12 @@
             padding: 4px 8px;
             text-align: left;
             min-width: 60px;
-            max-width: 150px;
+            max-width: 180px;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
             height: 24px;
+            position: relative;
         }
 
         .diff-table th {
@@ -299,6 +297,41 @@
             position: sticky;
             top: 0;
             z-index: 10;
+        }
+
+        .diff-table th:first-child,
+        .diff-table td:first-child,
+        .row-header {
+            background: var(--header-bg) !important;
+            font-weight: bold !important;
+            position: sticky !important;
+            left: 0 !important;
+            z-index: 15 !important;
+            text-align: left !important;
+            min-width: 50px !important;
+            max-width: 50px !important;
+            width: 50px !important;
+            box-sizing: border-box !important;
+        }
+
+        /* ===== COLUMN RESIZE ===== */
+        .column-resizer {
+            position: absolute;
+            top: 0;
+            right: -4px;
+            width: 8px;
+            height: 100%;
+            cursor: col-resize;
+            background: transparent;
+            z-index: 100;
+        }
+
+        .column-resizer:hover {
+            background: var(--primary-color);
+        }
+
+        .column-resizer.resizing {
+            background: var(--primary-color);
         }
 
         .row-header {
@@ -346,10 +379,6 @@
 
             .table-section {
                 width: 100%;
-            }
-
-            .resize-handle {
-                display: none;
             }
 
             .header h1 {
@@ -417,14 +446,13 @@
 
         <section id="comparisonSection" class="comparison-section">
             <div class="table-container">
-                <div class="table-section original">
+                <div class="table-section">
                     <div class="table-title">Original Data</div>
                     <div class="table-wrapper" id="originalWrapper" role="region" aria-label="Original data table">
                         <div id="originalTable" class="no-data">No data available</div>
                     </div>
-                    <div class="resize-handle" id="resizeHandle" aria-label="Resize tables"></div>
                 </div>
-                <div class="table-section comparison">
+                <div class="table-section">
                     <div class="table-title">Comparison Data</div>
                     <div class="table-wrapper" id="compareWrapper" role="region" aria-label="Comparison data table">
                         <div id="compareTable" class="no-data">No data available</div>
@@ -461,12 +489,10 @@
                 SYNC_CONTROL: '#syncControl',
                 RESULT_MESSAGE: '#resultMessage',
                 COMPARISON_SECTION: '#comparisonSection',
-                RESIZE_HANDLE: '#resizeHandle',
                 ORIGINAL_WRAPPER: '#originalWrapper',
                 COMPARE_WRAPPER: '#compareWrapper',
                 ORIGINAL_TABLE: '#originalTable',
-                COMPARE_TABLE: '#compareTable',
-                TABLE_CONTAINER: '.table-container'
+                COMPARE_TABLE: '#compareTable'
             };
 
             constructor() {
@@ -475,7 +501,9 @@
                     compareData: [],
                     diffResult: null,
                     syncScrollEnabled: true,
-                    isResizing: false
+                    isResizing: false,
+                    resizeStartX: 0,
+                    resizeColumn: null
                 };
                 
                 this.elements = {};
@@ -821,7 +849,7 @@
             displayResults() {
                 this.createTables();
                 this.setupSyncScroll();
-                this.setupResizeHandle();
+                this.setupColumnResize();
                 this.showResultMessage();
                 this.showComparisonSection();
             }
@@ -878,40 +906,58 @@
             }
 
             /**
-             * Setup resize handle functionality
+             * Setup column resize functionality
              */
-            setupResizeHandle() {
-                const { RESIZE_HANDLE, TABLE_CONTAINER } = this.elements;
-                
-                if (!RESIZE_HANDLE || !TABLE_CONTAINER) return;
+            setupColumnResize() {
+                const tables = [this.elements.ORIGINAL_TABLE, this.elements.COMPARE_TABLE].map(el => 
+                    el.querySelector('.diff-table')
+                ).filter(Boolean);
 
-                RESIZE_HANDLE.addEventListener('mousedown', (e) => {
-                    this.startResize(e, TABLE_CONTAINER);
+                tables.forEach(table => {
+                    const headers = table.querySelectorAll('th');
+                    headers.forEach((header, index) => {
+                        if (index > 0) { // Skip first column (row numbers)
+                            this.addColumnResizer(header, table, index);
+                        }
+                    });
                 });
             }
 
             /**
-             * Start resize operation
+             * Add column resizer to header
              */
-            startResize(event, tableContainer) {
+            addColumnResizer(header, table, columnIndex) {
+                const resizer = document.createElement('div');
+                resizer.className = 'column-resizer';
+                resizer.addEventListener('mousedown', (e) => {
+                    this.startColumnResize(e, table, columnIndex);
+                });
+                header.appendChild(resizer);
+            }
+
+            /**
+             * Start column resize operation
+             */
+            startColumnResize(event, table, columnIndex) {
+                event.preventDefault();
+                
                 this.state.isResizing = true;
+                this.state.resizeStartX = event.clientX;
+                this.state.resizeColumn = { table, columnIndex };
+                
                 document.body.style.cursor = 'col-resize';
                 document.body.style.userSelect = 'none';
                 
-                const startX = event.clientX;
-                const startWidth = tableContainer.getBoundingClientRect().width;
+                const resizer = event.target;
+                resizer.classList.add('resizing');
 
                 const handleMouseMove = (e) => {
                     if (!this.state.isResizing) return;
-                    
-                    const deltaX = e.clientX - startX;
-                    const newWidth = Math.max(600, startWidth + deltaX * 2);
-                    
-                    tableContainer.style.width = `${newWidth}px`;
+                    this.resizeColumn(e);
                 };
 
                 const handleMouseUp = () => {
-                    this.endResize(handleMouseMove, handleMouseUp);
+                    this.endColumnResize(resizer, handleMouseMove, handleMouseUp);
                 };
 
                 document.addEventListener('mousemove', handleMouseMove);
@@ -919,12 +965,55 @@
             }
 
             /**
-             * End resize operation
+             * Resize column width
              */
-            endResize(mouseMoveHandler, mouseUpHandler) {
+            resizeColumn(event) {
+                const deltaX = event.clientX - this.state.resizeStartX;
+                const { table, columnIndex } = this.state.resizeColumn;
+                
+                const header = table.querySelector(`th:nth-child(${columnIndex + 1})`);
+                const currentWidth = header.offsetWidth;
+                const newWidth = Math.max(60, currentWidth + deltaX);
+                
+                // Apply width to both tables for synchronization
+                const bothTables = [
+                    this.elements.ORIGINAL_TABLE.querySelector('.diff-table'),
+                    this.elements.COMPARE_TABLE.querySelector('.diff-table')
+                ].filter(Boolean);
+                
+                bothTables.forEach(t => {
+                    const targetHeader = t.querySelector(`th:nth-child(${columnIndex + 1})`);
+                    if (targetHeader) {
+                        targetHeader.style.minWidth = `${newWidth}px`;
+                        targetHeader.style.maxWidth = `${newWidth}px`;
+                        targetHeader.style.width = `${newWidth}px`;
+                        
+                        // Apply to all cells in this column
+                        const cells = t.querySelectorAll(`td:nth-child(${columnIndex + 1})`);
+                        cells.forEach(cell => {
+                            if (!cell.classList.contains('row-header')) {
+                                cell.style.minWidth = `${newWidth}px`;
+                                cell.style.maxWidth = `${newWidth}px`;
+                                cell.style.width = `${newWidth}px`;
+                            }
+                        });
+                    }
+                });
+                
+                this.state.resizeStartX = event.clientX;
+            }
+
+            /**
+             * End column resize operation
+             */
+            endColumnResize(resizer, mouseMoveHandler, mouseUpHandler) {
                 this.state.isResizing = false;
+                this.state.resizeColumn = null;
+                
                 document.body.style.cursor = '';
                 document.body.style.userSelect = '';
+                resizer.classList.remove('resizing');
+                
                 document.removeEventListener('mousemove', mouseMoveHandler);
                 document.removeEventListener('mouseup', mouseUpHandler);
             }
